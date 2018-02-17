@@ -1,2 +1,5 @@
 # chainer_book
-Chainerのレッスン
+## Chainerのレッスン
+
+Chainerでコンテンツ生成のテスト
+
