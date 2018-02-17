@@ -33,6 +33,8 @@ class SuperResolution_NN(chainer.Chain):
 
         # 全ての層を定義する
         with self.init_scope():
+            # YUVのYのみ、1chのデータを入力と出力に使う
+            # 16 x 16の画像データを入力すると、出力データは40 x 40になる
             self.c1 = L.Convolution2D( 1, 56, ksize = 5, stride = 1, pad = 0, initialW = w1)
             self.l1 = L.PReLU()
             self.c2 = L.Convolution2D( 56, 12, ksize = 1, stride = 1, pad = 0, initialW = w2)
@@ -86,11 +88,11 @@ class SRUpdater(training.StandardUpdater):
         for img in batch:
             # 高解像度データ
             hpix = np.array(img, dtype=np.float32) / 255.0
-            y_batch.append([hpix[:, :, 0]]) # YCbCrのYのみの1chデータ
+            y_batch.append([hpix[:, :, 0]]) # YUVのYのみの1chデータ
             # 低解像度データ
             low = img.resize(( 16, 16), Image.NEAREST)
             lpix = np.array(low, dtype=np.float32) / 255.0
-            x_batch.append([lpix[:, :, 0]]) # YCbCrのYのみの1chデータ
+            x_batch.append([lpix[:, :, 0]]) # YUVのYのみの1chデータ
 
 
         # numpy or cupy配列にする
@@ -116,13 +118,13 @@ images = []
 # すべてのファイル
 fs = os.listdir('train')
 for fn in fs:
-    # 画像を読み込み
+    # スクレイピングした320 x 320画像を読み込み
     img = Image.open('train/' + fn).resize((320, 320)).convert('YCbCr')
     cur_x = 0
     while cur_x <= 320 - 40:
         cur_y = 0
         while cur_y <= 320 - 40:
-            # 画像から切り出し
+            # オリジナル画像から40 x 40画像の切り出し
             rect = ( cur_x, cur_y, cur_x+40, cur_y+40)
             cropimg = img.crop(rect).copy()
             # 配列に追加
@@ -148,6 +150,7 @@ trainer.extend(extensions.ProgressBar())
 
 # 中間結果を保存する
 n_save = 0
+# 1000 epochごとに割り込みをかける
 @chainer.training.make_extension(trigger=(1000, 'epoch'))
 
 def save_model(trainer):
